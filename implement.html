@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เอกสารขั้นตอนการสร้างระบบจัดการสินค้า (CRUD)</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            margin-top: 20px;
+            margin-bottom: 15px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>เอกสารขั้นตอนการสร้างระบบจัดการสินค้า (CRUD)</h1>
+        <p>เอกสารนี้สรุปขั้นตอนการพัฒนาระบบจัดการสินค้า (Product) ด้วย Laravel Framework ตั้งแต่เริ่มต้นจนสามารถใช้งานฟังก์ชันพื้นฐาน CRUD (Create, Read, Update, Delete) ได้</p>
+
+        <h2>1. สร้าง Model และ Migration</h2>
+        <p>เริ่มต้นด้วยการใช้ Artisan command เพื่อสร้าง Model <code>Product</code> พร้อมกับไฟล์ Migration สำหรับสร้างตารางในฐานข้อมูล</p>
+        <pre><code>php artisan make:model Product -m</code></pre>
+
+        <h2>2. แก้ไขไฟล์ Migration</h2>
+        <p>เพิ่มคอลัมน์ที่ต้องการ (<code>name</code> และ <code>price</code>) ในไฟล์ Migration ที่เพิ่งถูกสร้างขึ้นใน <code>database/migrations/</code></p>
+        <pre><code>// ในไฟล์ ..._create_products_table.php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('products', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->decimal('price', 8, 2);
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('products');
+    }
+};</code></pre>
+
+        <h2>3. รัน Migration</h2>
+        <p>ใช้คำสั่ง <code>migrate</code> เพื่อสร้างตาราง <code>products</code> ลงในฐานข้อมูลตามโครงสร้างที่กำหนด</p>
+        <pre><code>php artisan migrate</code></pre>
+
+        <h2>4. สร้าง Seeder (ข้อมูลจำลอง)</h2>
+        <p>สร้าง Seeder เพื่อเพิ่มข้อมูลสินค้าตัวอย่างสำหรับใช้ในการทดสอบ</p>
+        <pre><code>php artisan make:seeder ProductSeeder</code></pre>
+        <p>จากนั้น เพิ่มโค้ดสำหรับสร้างข้อมูลลงในไฟล์ <code>database/seeders/ProductSeeder.php</code></p>
+        <pre><code>// database/seeders/ProductSeeder.php
+use Illuminate\Database\Seeder;
+use App\Models\Product;
+
+class ProductSeeder extends Seeder
+{
+    public function run(): void
+    {
+        Product::create(['name' => 'Product 1', 'price' => 10.99]);
+        Product::create(['name' => 'Product 2', 'price' => 20.49]);
+        Product::create(['name' => 'Product 3', 'price' => 5.99]);
+    }
+}</code></pre>
+        <p>และสั่งรัน Seeder ด้วยคำสั่ง:</p>
+        <pre><code>php artisan db:seed --class=ProductSeeder</code></pre>
+
+        <h2>5. กำหนด Mass Assignment ใน Model</h2>
+        <p>ใน Model <code>app/Models/Product.php</code> กำหนด property <code>$fillable</code> เพื่ออนุญาตให้สามารถบันทึกข้อมูล <code>name</code> และ <code>price</code> ผ่าน Mass Assignment ได้</p>
+        <pre><code>// app/Models/Product.php
+protected $fillable = ['name', 'price'];</code></pre>
+
+        <h2>6. สร้าง Controller</h2>
+        <p>สร้าง <code>ProductController</code> แบบ resource เพื่อจัดการ request ที่เกี่ยวข้องกับการทำ CRUD ทั้งหมด</p>
+        <pre><code>php artisan make:controller ProductController --resource</code></pre>
+
+        <h2>7. กำหนด Routes</h2>
+        <p>ในไฟล์ <code>routes/web.php</code> เพิ่ม resource route เพื่อให้ Laravel สร้าง routes ที่จำเป็นสำหรับ <code>ProductController</code> โดยอัตโนมัติ</p>
+        <pre><code>// routes/web.php
+use App\Http\Controllers\ProductController;
+
+Route::resource('products', ProductController::class);</code></pre>
+
+        <h2>8. Implement Logic ใน Controller</h2>
+        <p>ใส่ Logic การทำงานของแต่ละฟังก์ชัน (index, create, store, show, edit, update, destroy) ลงใน <code>app/Http/Controllers/ProductController.php</code> พร้อมทั้งแก้ไขข้อผิดพลาด <code>Undefined variable $i</code> ที่เกิดขึ้น</p>
+        <pre><code>// app/Http/Controllers/ProductController.php
+namespace App\Http\Controllers;
+
+use App\Models\Product;
+use Illuminate\Http\Request;
+
+class ProductController extends Controller
+{
+    public function index()
+    {
+        $products = Product::all();
+        return view('products.index', compact('products'))
+            ->with('i', (request()->input('page', 1) - 1) * 5);
+    }
+
+    // ... (โค้ดสำหรับ create, store, show, edit, update, destroy)
+}</code></pre>
+
+        <h2>9. สร้าง Views (Blade Templates)</h2>
+        <p>สร้างไฟล์ Views ที่จำเป็นสำหรับแต่ละหน้าในโฟลเดอร์ <code>resources/views/products/</code>:</p>
+        <ul>
+            <li><code>index.blade.php</code></li>
+            <li><code>create.blade.php</code></li>
+            <li><code>edit.blade.php</code></li>
+            <li><code>show.blade.php</code></li>
+        </ul>
+        <p>และสร้างไฟล์ Layout กลาง <code>resources/views/layouts/app.blade.php</code> เพื่อให้ทุกหน้ามีโครงสร้างเว็บที่เหมือนกัน</p>
+
+        <h2>10. การรันโปรเจกต์</h2>
+        <p>ใช้คำสั่ง Artisan เพื่อรัน development server:</p>
+        <pre><code>php artisan serve</code></pre>
+        <p>จากนั้นสามารถเข้าถึงระบบผ่านเบราว์เซอร์ได้ที่ URL: <a href="http://127.0.0.1:8000/products">http://127.0.0.1:8000/products</a></p>
+    </div>
+</body>
+</html>
